@@ -26,11 +26,22 @@ const io=new Server(server,{
 // Serve static files from the React app
 app.use(express.static(path.join(__dirname, 'client/build')));
 
+//userechema
+const users=require('./db/users.js');
+const conversations=require('./db/conversations.js');
+const messages=require('./db/messages.js');
 
-let userss=[];
+
+
+
+
+
+
+let userss = [];
+
 io.on('connection', async (socket) => {
     console.log("User connected", socket.id);
-    
+
     socket.on('addUser', (userId) => {
         if (!userId) {
             console.error("User ID is null or undefined");
@@ -63,17 +74,19 @@ io.on('connection', async (socket) => {
         console.log("Receiver:", receiver);
         console.log("Sender:", sender);
 
+        const convoid = await conversations.findOne({ member: { $all: [data.senderid, data.recid] } }, '_id');
+
         if (sender) {
             const senderDetails = await users.findById(data.senderid, "name email");
-            if(data.senderid !== data.recid) {
-                io.to(sender.socketId).emit('getMessage', { userd: senderDetails, message: data.message });
+            if (data.senderid !== data.recid) {
+                console.log("con"+data.convoid);
+                io.to(sender.socketId).emit('getMessage', { userd: senderDetails, message: data.message, convoid: data.convoid });
             }
-            
         }
 
         if (receiver) {
-            const receiverDetails = await users.findById(data.recid, "name email");
-            io.to(receiver.socketId).emit('getMessage', { userd: receiverDetails, message: data.message });
+            const senderDetails = await users.findById(data.senderid, "name email");
+            io.to(receiver.socketId).emit('getMessage', { userd: senderDetails, message: data.message, convoid: data.convoid });
         }
     });
 
@@ -94,10 +107,7 @@ io.on('connection', async (socket) => {
 require('./db/connection.js');
 
 
-//userechema
-const users=require('./db/users.js');
-const conversations=require('./db/conversations.js');
-const messages=require('./db/messages.js');
+
 
 // signup
 app.post('/api/signup', async (req, res, next) => {
