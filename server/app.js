@@ -24,7 +24,7 @@ const io=new Server(server,{
 
 
 // Serve static files from the React app
-app.use(express.static(path.join(__dirname, 'client/build')));
+// app.use(express.static(path.join(__dirname, 'client/build')));
 
 //userechema
 const users=require('./db/users.js');
@@ -40,7 +40,7 @@ const messages=require('./db/messages.js');
 let userss = [];
 
 io.on('connection', async (socket) => {
-    console.log("User connected", socket.id);
+    // console.log("User connected", socket.id);
 
     socket.on('addUser', (userId) => {
         if (!userId) {
@@ -49,7 +49,7 @@ io.on('connection', async (socket) => {
         }
 
         socket.userId = userId;
-        console.log("User ID:", userId);
+        // console.log("User ID:", userId);
 
         const userExists = userss.find(user => user.userId === userId);
         if (!userExists) {
@@ -57,11 +57,11 @@ io.on('connection', async (socket) => {
             userss.push(user);
             io.emit('getUser', userss);
         }
-        console.log("Users:", userss);
+        // console.log("Users:", userss);
     });
 
     socket.on('sendMessage', async (data) => {
-        console.log("Incoming data:", data);
+        // console.log("Incoming data:", data);
 
         if (!data.recid || !data.senderid) {
             console.error("Receiver ID or Sender ID is null or undefined");
@@ -71,15 +71,15 @@ io.on('connection', async (socket) => {
         const receiver = userss.find(user => user.userId === data.recid);
         const sender = userss.find(user => user.userId === data.senderid);
 
-        console.log("Receiver:", receiver);
-        console.log("Sender:", sender);
+        // console.log("Receiver:", receiver);
+        // console.log("Sender:", sender);
 
         const convoid = await conversations.findOne({ member: { $all: [data.senderid, data.recid] } }, '_id');
 
         if (sender) {
             const senderDetails = await users.findById(data.senderid, "name email");
             if (data.senderid !== data.recid) {
-                console.log("con"+data.convoid);
+                // console.log("con"+data.convoid);
                 io.to(sender.socketId).emit('getMessage', { userd: senderDetails, message: data.message, convoid: data.convoid });
             }
         }
@@ -91,7 +91,7 @@ io.on('connection', async (socket) => {
     });
 
     socket.on('disconnect', () => {
-        console.log("User disconnected", socket.id);
+        // console.log("User disconnected", socket.id);
         userss = userss.filter(user => user.socketId !== socket.id);
         io.emit('getUser', userss);
     });
@@ -105,6 +105,29 @@ io.on('connection', async (socket) => {
 
 //bd connection
 require('./db/connection.js');
+
+
+
+// Authorization Middleware
+const authenticateToken = (req, res, next) => {
+    const token = req.header('Authorization')?.split(' ')[1];
+    if (!token) {
+        console.log("Access denied, no token provided");
+        return res.status(401).json({ error: 'Access denied, no token provided' });
+    }
+
+    try {
+        const JWT_SECRET_KEY = process.env.JWT_SECRET_KEY || 'this is secret key';
+        const verified = jwt.verify(token, JWT_SECRET_KEY);
+        req.user = verified;
+        console.log("authencation successful");
+        next();
+    } catch (err) {
+        return res.status(403).json({ error: 'Invalid token' });
+    }
+};
+
+
 
 
 
@@ -181,12 +204,12 @@ app.post('/api/signin', async (req, res, next) => {
 
 
 //conversations set
-app.post('/api/conversation',async (req, res)=>{
+app.post('/api/conversation',authenticateToken,async (req, res)=>{
     try {
         const {senderid,receiverid}=req.body;
         const conversation=new conversations({members:[senderid,receiverid]});
         await conversation.save();
-        console.log(conversation);
+        // console.log(conversation);
         res.status(200).send("Success");
     } catch (error) {
         res.status(500).send("server error: " + error.message);
@@ -196,15 +219,15 @@ app.post('/api/conversation',async (req, res)=>{
 
 // conversation get
 // Get conversations of a user
-app.get('/api/conversation/:userid', async (req, res) => {
+app.get('/api/conversation/:userid',authenticateToken, async (req, res) => {
     try {
       const userid = req.params.userid;
       const conversation = await conversations.find({ members: { $in: [userid] } });
-      console.log(conversation);
+    //   console.log(conversation);
   
       const conversationuserdatapromise = conversation.map(async (conversation) => {
         const receiverid = conversation.members.find((member) => member !== userid) || userid;
-        console.log(receiverid);
+        // console.log(receiverid);
         const usersdata = await users.findById(receiverid, 'name email');
         return { usersdata, conversationid: conversation._id };
       });
@@ -219,7 +242,7 @@ app.get('/api/conversation/:userid', async (req, res) => {
 
 
 // message post
-app.post('/api/message',async (req, res)=>{
+app.post('/api/message',authenticateToken,async (req, res)=>{
     try {
         const {conversationid,senderid, message,receiverid}=req.body;
         if(!senderid || !message){
@@ -230,8 +253,8 @@ app.post('/api/message',async (req, res)=>{
             await conversation.save();
             const messagesend=new messages({conversation_id:conversation._id,sender_id:senderid,message:message});
             await messagesend.save();
-            console.log(conversation);
-            console.log(messagesend);
+            // console.log(conversation);
+            // console.log(messagesend);
             return res.status(200).send({convoid:conversation._id});
             
         }else if(!receiverid){
@@ -248,7 +271,7 @@ app.post('/api/message',async (req, res)=>{
 });
 
 //coversationmessages get
-app.get('/api/message/:conversationid', async (req, res) => {
+app.get('/api/message/:conversationid',authenticateToken, async (req, res) => {
     try {
         const conversationid=req.params.conversationid;
         if(conversationid=='new') {
@@ -261,7 +284,7 @@ app.get('/api/message/:conversationid', async (req, res) => {
             return {userd,message:message.message};
         });
         const conversationdetails=await Promise.all(conversationdetailspromise);
-        console.log(conversationdetails);
+        // console.log(conversationdetails);
         res.status(200).json(conversationdetails);
     } catch (error) {
         console.log(error);
@@ -271,7 +294,7 @@ app.get('/api/message/:conversationid', async (req, res) => {
 
 
 //getting available users
-app.get('/api/users',async (req, res)=>{
+app.get('/api/users',authenticateToken,async (req, res)=>{
     try {
         const availableUsers=await users.find({},'_id name email');
         res.status(200).json(availableUsers);
@@ -294,9 +317,9 @@ app.get('/api/users',async (req, res)=>{
 
 
 // Catch all other routes and return the React app
-app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, 'client/build', 'index.html'));
-  });
+// app.get('*', (req, res) => {
+//     res.sendFile(path.join(__dirname, 'client/build', 'index.html'));
+//   });
 
 server.listen(serverport,()=>{
     console.log(`server is running on port ${serverport}`);

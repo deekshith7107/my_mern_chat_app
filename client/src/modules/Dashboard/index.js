@@ -6,6 +6,7 @@ import sendicon from "../../assets/send.png";
 import { useState } from "react";
 import Button from "../../components/butt.js";
 
+
 import { useNavigate } from "react-router-dom";
 
 import { io } from "socket.io-client";
@@ -15,7 +16,8 @@ import {useRef} from "react";
 const Dashboard = () => {
 
   
-
+  //searching availusers
+  const [search, setSearch] = useState("");
 
   //for looging out
   const [isLoggedIn, setIsLoggedIn] = useState(true);
@@ -61,9 +63,9 @@ const Dashboard = () => {
     return () => newSocket.close();
   }, []);
 
-  useEffect(() => {
-    console.log("curstate", messagepopup);
-  }, [messagepopup]);
+  // useEffect(() => {
+  //   console.log("curstate", messagepopup);
+  // }, [messagepopup]);
   useEffect(() => {
     // console.log(socket);
     if (socket) {
@@ -75,7 +77,7 @@ const Dashboard = () => {
       });
 
       socket.on("getMessage", (data) => {
-        console.log("messages", data);
+        // console.log("messages", data);
 
         const { convoid, userd, message } = data;
 
@@ -83,13 +85,13 @@ const Dashboard = () => {
         const conmess = { convoid, message };
         const remdetails = { userd, message };
         const localconvoid = localStorage.getItem("user:convo");
-        console.log("comess" + conmess.convoid);
-        console.log("curcon" + curconvoid);
-        console.log("localconvo" + localconvoid);
+        // console.log("comess" + conmess.convoid);
+        // console.log("curcon" + curconvoid);
+        // console.log("localconvo" + localconvoid);
 
         if (localconvoid === convoid) {
           setmessage((prevstate) => {
-            console.log("prevstate", prevstate);
+            // console.log("prevstate", prevstate);
             if (prevstate) {
               return [...prevstate, remdetails];
             }
@@ -112,7 +114,7 @@ const Dashboard = () => {
         method: "get",
         headers: {
           "Content-Type": "application/json",
-          // "Authorization":"Bearer "+localStorage.getItem("user:token")
+          "Authorization":"Bearer "+localStorage.getItem("user:token")
         },
       });
       const data = await res.json();
@@ -123,8 +125,8 @@ const Dashboard = () => {
         return prevstate.filter((state) =>  localStorage.getItem("user:convo")!== state.convoid);
       });      
       
-      console.log("sendmessage convoid 1  " + convoid);
-      console.log("cur state in handle message"+messagepopup);
+      // console.log("sendmessage convoid 1  " + convoid);
+      // console.log("cur state in handle message"+messagepopup);
       setsendmessage((prevstate) => {
         return {
           ...prevstate,
@@ -136,7 +138,8 @@ const Dashboard = () => {
       });
       // console.log("sendmessage in opening chat :",sendmessage);
     } catch (error) {
-      console.log(error);
+      // console.log(error);
+      alert(error.message);
     }
   };
 
@@ -151,12 +154,12 @@ const Dashboard = () => {
       // console.log("sendmessage in before sending message :",sendmessage);
 
       // setcurconvoid(convoid);
-      console.log("sendmessage convoid" + convoid);
+      // console.log("sendmessage convoid" + convoid);
       const res = await fetch(`http://localhost:3000/api/message`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          // "Authorization":"Bearer "+localStorage.getItem("user:token")
+          "Authorization":"Bearer "+localStorage.getItem("user:token")
         },
         body: JSON.stringify({
           conversationid: convoid,
@@ -184,7 +187,8 @@ const Dashboard = () => {
 
       // console.log("sendmessage in after sending message :", sendmessage);
     } catch (error) {
-      console.log(error);
+      // console.log(error);
+      alert(error);
     }
   };
 
@@ -194,7 +198,7 @@ const Dashboard = () => {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
-          // "Authorization":"Bearer "+localStorage.getItem("user:token")
+          "Authorization":"Bearer "+localStorage.getItem("user:token")
         },
       });
       const resdata = await res.json();
@@ -217,7 +221,7 @@ const Dashboard = () => {
             method: "GET",
             headers: {
               "Content-Type": "application/json",
-              // "Authorization":"Bearer "+localStorage.getItem("user:token")
+              "Authorization":"Bearer "+localStorage.getItem("user:token")
             },
           }
         );
@@ -236,11 +240,12 @@ const Dashboard = () => {
   useEffect(() => {
     const fetchusers = async () => {
       try {
+        // console.log(localStorage.getItem("user:token"));
         const res = await fetch("http://localhost:3000/api/users", {
           method: "GET",
           headers: {
             "Content-Type": "application/json",
-            // "Authorization":"Bearer "+localStorage.getItem("user:token")
+            "Authorization":"Bearer "+localStorage.getItem("user:token")
           },
         });
         const resdata = await res.json();
@@ -306,7 +311,7 @@ const Dashboard = () => {
                       <div className="text-red-500">
                         {messagepopup.map(({ convoid, message }, index) => {
                           if (convoid === conversationid) {
-                            console.log("match"+message);
+                            // console.log("match"+message);
 
                             return <div key={index}>{message}</div>;
                           } else {
@@ -398,8 +403,13 @@ const Dashboard = () => {
 
       <div className="h-screen border w-[20%] ">
         <div className="h-[90%] overflow-auto">
+          <div>
+            <Input placeholder="search username" type="text" value={search} onChange={(e)=>{setSearch(e.target.value)}} />
+          </div>
           {availableusers.length > 0 ? (
-            availableusers.map((user, index) => {
+            availableusers.filter((user)=>{
+              return search===''?true : user.name.toLowerCase().includes(search.toLowerCase())
+            }).map((user, index) => {
               return (
                 <div key={index}>
                   <div className="grid grid-cols-4 gap-2 m-3">
@@ -434,7 +444,7 @@ const Dashboard = () => {
               localStorage.removeItem("user:details");
               navigate("users/signin");
               setIsLoggedIn(false);
-              console.log("logout");
+              // console.log("logout");
             }}
           ></Button>
         </div>
